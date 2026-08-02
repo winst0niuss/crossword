@@ -1,7 +1,24 @@
 # CrossPoint Reader Development Guide
 
-Project: Open-source e-reader firmware for Xteink X4 (ESP32-C3)
+Project: Open-source e-reader firmware for Xteink X4/X3 (ESP32-C3) and Seeed Sticky (ESP32-S3)
 Mission: Provide a lightweight, high-performance reading experience focused on EPUB rendering on constrained hardware.
+
+**Deeper reference docs** (read these before large changes; this file is the always-loaded rule set, they carry the detail):
+* [SCOPE.md](../SCOPE.md) — what belongs in this firmware and what does not
+* [docs/contributing/](../docs/contributing/) — `architecture.md`, `development-workflow.md`, `getting-started.md`, `testing-debugging.md`, `touch-and-ui.md`
+* [docs/activity-manager.md](../docs/activity-manager.md) — activity stack, sub-activities, render task
+* [docs/file-formats.md](../docs/file-formats.md) — binary cache layouts and their versions
+* `.claude/skills/` — on-demand decision procedures (heap discipline, HAL layering, scope, refactoring)
+
+## Repository Setup (first clone)
+
+```bash
+git submodule update --init --recursive   # freeink-sdk; lib_deps symlink into it, build fails without it
+git config core.hooksPath .githooks       # pre-commit runs ./bin/clang-format-fix
+pip install -r requirements.txt           # python deps for build/asset scripts
+```
+
+A Nix dev shell is available: `nix develop ./nix` (or `nix-shell nix/`).
 
 ## AI Agent Identity and Cognitive Rules
 * Role: Senior Embedded Systems Engineer (ESP-IDF/Arduino-ESP32 specialized).
@@ -30,9 +47,10 @@ uname -s
 - **Windows (Git Bash)**: Unix commands, `C:\` paths in Windows but `/` in bash, limited glob (use `find`+`xargs`)
 - **Linux/WSL**: Full bash, Unix paths, native glob support
 
-**Cross-Platform Code Formatting**:
+**Cross-Platform Code Formatting**: use the repo scripts, which handle the platform differences and the version guard for you:
 ```bash
-find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+./bin/clang-format-fix          # macOS / Linux / Git Bash
+bin/clang-format-fix.ps1        # Windows PowerShell
 ```
 
 ---
@@ -40,6 +58,8 @@ find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 ## Platform and Hardware Constraints
 
 ### Hardware Specs
+
+Primary target — Xteink X4/X3 (one binary, `FREEINK_DEVICE_X4` + `FREEINK_DEVICE_X3`):
 * MCU: ESP32-C3 (Single-core RISC-V @ 160MHz)
 * RAM: ~380KB usable (VERY LIMITED - primary project constraint)
   * **NO PSRAM**: ESP32-C3 has no PSRAM capability (unlike ESP32-S3)
@@ -48,6 +68,13 @@ find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 * Display: 800x480 E-Ink (Slow refresh, monochrome, 1-2s full update)
   * Framebuffer: 48,000 bytes (800 × 480 ÷ 8)
 * Storage: SD Card (Used for books and aggressive caching)
+
+Secondary target — Seeed Sticky (`env:sticky`, `FREEINK_DEVICE_STICKY`):
+* MCU: ESP32-S3 — a **different MCU family**, so it is a separate binary, never a build of the C3 envs
+* 3.97" 800x480 SSD1677 + GT911 touch (SDK auto-enables `CAP_TOUCH` and the BQ27220 gauge)
+* PSRAM is deliberately **off** — the 48KB framebuffer fits in DRAM, so the same memory discipline applies
+
+**Rule**: write memory- and input-code to the C3/no-PSRAM/no-touch baseline. Touch is a capability, not an assumption — see [docs/contributing/touch-and-ui.md](../docs/contributing/touch-and-ui.md).
 
 ### The Resource Protocol
 1. Stack Safety: Limit local function variables to < 256 bytes. The ESP32-C3 default stack is small; use std::unique_ptr or static pools for larger buffers.
@@ -66,19 +93,14 @@ find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 ### Build System: PlatformIO
 
-**PlatformIO is BOTH a VS Code extension AND a CLI tool**:
+**PlatformIO is BOTH a VS Code extension AND a CLI tool**. The repo ships no `.vscode/` directory — the extension generates its own config locally, and it is gitignored.
 
-1. **VS Code Extension** (Recommended):
-   * Extension ID: `platformio.platformio-ide` (see `.vscode/extensions.json`)
-   * Provides: Toolbar buttons, IntelliSense, integrated build/upload/monitor
-   * Configuration: `.vscode/c_cpp_properties.json`, `.vscode/tasks.json`
-   * Usage: Click Build (✓), Upload (→), or Monitor (🔌) buttons
-
-2. **CLI Tool** (`pio` command):
-   * **Installation**: Python package (typically `pip install platformio`)
-   * **Windows Location**: `C:\Users\<user>\AppData\Local\Programs\Python\Python3xx\Scripts\pio.exe`
+1. **CLI Tool** (`pio` command) — what an agent should use:
+   * **Installation**: Python package (`pip install platformio`); CI pins pioarduino's core `v6.1.19`
    * **Verify**: `which pio` (Git Bash) or `where.exe pio` (cmd)
-   * **Usage**: `pio run`, `pio run -t upload`, etc.
+   * **Usage**: `pio run`, `pio run -t upload`, `pio run -t unit-tests`
+
+2. **VS Code Extension**: `platformio.platformio-ide` — toolbar Build (✓) / Upload (→) / Monitor (🔌).
 
 **Configuration Files**:
 * `platformio.ini`: Main build configuration (committed to git)
@@ -86,13 +108,15 @@ find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 * `partitions.csv`: ESP32 flash partition layout
 
 ### Build Environment
-* **Standard**: C++20 (`-std=c++2a`). No Exceptions, No RTTI.
+* **Standard**: C++20 (`-std=gnu++2a`, replacing the framework's `gnu++11`). Exceptions off (`-fno-exceptions`).
 * **Logging**: ALWAYS use `LOG_INF`, `LOG_DBG`, or `LOG_ERR` from `Logging.h`. Raw Serial output is deprecated.
 * **Environments** (in `platformio.ini`):
-  * `default`: Development (LOG_LEVEL=2, serial enabled)
-  * `gh_release`: Production (LOG_LEVEL=0)
-  * `gh_release_rc`: Release candidate (LOG_LEVEL=1)
-  * `slim`: Minimal build (no serial logging)
+  * `default`: Development, X4+X3 (LOG_LEVEL=2, serial enabled)
+  * `gh_release`: Production, X4+X3 (LOG_LEVEL=1)
+  * `gh_release_rc`: Release candidate (LOG_LEVEL=1, version suffixed with `$CROSSPOINT_RC_HASH`)
+  * `slim`: Minimal build (`-UENABLE_SERIAL_LOG`, no serial logging)
+  * `sticky`: Seeed Sticky / ESP32-S3 (`pio run -e sticky -t upload`)
+* **Core rebuild**: `custom_sdkconfig` right-sizes FreeRTOS task stacks and moves the WiFi stack out of IRAM, reclaiming ~32-37 KB of heap. This rebuilds the Arduino core on first build — slow once, cached after. An interrupted rebuild can leave a stale scaffold that fails with `multiple definition of 'app_main'`; the cleanup command is in the `platformio.ini` comment. **Never** `git clean -fdX` — it deletes `platformio.local.ini`.
 
 ### Critical Build Flags
 These flags in `platformio.ini` fundamentally affect firmware behavior:
@@ -103,10 +127,13 @@ These flags in `platformio.ini` fundamentally affect firmware behavior:
 -DARDUINO_USB_CDC_ON_BOOT=1          // Serial available immediately at boot
 -DXML_CONTEXT_BYTES=1024             // XML parser memory limit (EPUB parsing)
 -DUSE_UTF8_LONG_NAMES=1              // SD card long filename support
--DMINIZ_NO_ZLIB_COMPATIBLE_NAMES=1   // Avoid zlib name conflicts
 -DXML_GE=0                           // Disable XML general entities (security)
 -DDESTRUCTOR_CLOSES_FILE=1           // FsFile destructor auto-closes (SdFat)
+-DWOLFSSL_HAVE_SP_ECC                // Fixed 256-bit ECC; fast-math bignums OOM at ~50KB free heap
+-fno-exceptions                      // Makes bare `new` abort() instead of returning nullptr
 ```
+
+(`MINIZ_NO_ZLIB_COMPATIBLE_NAMES` is set in `lib/miniz/src/MinizConfig.h`, not in `platformio.ini`.)
 
 **DESTRUCTOR_CLOSES_FILE implications**:
 - SdFat's `FsBaseFile` destructor calls `close()` automatically when the object goes out of scope
@@ -402,25 +429,22 @@ Constraint: Physical button positions are fixed on hardware, but their logical f
 
 ### Activity Lifecycle and Memory Management
 
-**Source**: [src/main.cpp:132-143](../src/main.cpp)
+**Source**: [src/activities/ActivityManager.h](../src/activities/ActivityManager.h), full detail in [docs/activity-manager.md](../docs/activity-manager.md)
 
-**CRITICAL**: Activities are **heap-allocated** and **deleted on exit**.
+**CRITICAL**: Activities are **heap-allocated** and **destroyed on exit**.
+
+Navigation goes through the global `activityManager` (declared in `src/main.cpp`), NOT through raw `new`/`delete`:
 
 ```cpp
-// main.cpp navigation pattern
-void exitActivity() {
-  if (currentActivity) {
-    currentActivity->onExit();
-    delete currentActivity;  // Activity deleted here!
-    currentActivity = nullptr;
-  }
-}
-
-void enterNewActivity(Activity* activity) {
-  currentActivity = activity;  // Heap-allocated activity
-  currentActivity->onEnter();
-}
+activityManager.goHome();
+activityManager.goToReader(path);
+activityManager.replaceActivity(std::move(activity));
 ```
+
+Key properties of the manager, which the rest of this section depends on:
+- Activities are owned by `std::unique_ptr` — a `currentActivity` plus a `stackActivities` stack for sub-activities (the Android ActivityManager model: push a sub-activity, get its result back via callback).
+- Transitions are **deferred**: a `goTo*()` call sets `pendingActivity` + `pendingAction` (Push/Pop/Replace) and the swap happens on the next loop iteration. Never assume an activity is torn down the instant you request navigation.
+- Rendering runs on a **separate render task**; use `RenderLock` for anything that must not race a repaint.
 
 **Memory Implications**:
 - Activity navigation = `delete` old activity + `new` create next activity
@@ -525,18 +549,43 @@ pio run -t upload && pio device monitor
 
 **Via VS Code**: Click Monitor (🔌) button in PlatformIO toolbar
 
+### Host Unit Tests (gtest)
+
+`test/` holds **host-side** gtest suites — they compile with the system compiler, not the ESP-IDF toolchain, and run on your machine. They cover the pure-logic libraries: streaming/release JSON parsers, differential rounding, hyphenation, UTF-8 composition, OPDS filenames, MiniBidi Arabic, combining marks. CI runs them on every PR.
+
+```bash
+# Build and run everything (PlatformIO wrapper — same thing as the CMake commands below)
+pio run -t unit-tests
+
+# Or drive CMake/CTest directly
+cmake -S test -B build/test -DCMAKE_BUILD_TYPE=Release
+cmake --build build/test
+ctest --test-dir build/test --output-on-failure -j
+
+# Run a single suite
+cmake --build build/test --target StreamingJsonParserTest
+build/test/streaming_json_parser/StreamingJsonParserTest --gtest_filter='*Utf8*'
+```
+
+Google Test is fetched via CMake `FetchContent` on first configure (version pinned in `test/CMakeLists.txt`). **Adding a suite**: create `test/<name>/` with its own `CMakeLists.txt` and register it with `add_subdirectory(<name>)` in `test/CMakeLists.txt`.
+
+**Rule**: any change to a pure-logic library under `lib/` that has a suite must be validated with `pio run -t unit-tests` before handing the change back — that is real verification an agent can perform without hardware.
+
 ### Code Quality
 
 ```bash
-# Static analysis (cppcheck)
-pio check
+# Static analysis (cppcheck) — use the CI flags so local results match CI
+pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
 
-# Format code (clang-format) - Windows Git Bash
-find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-
-# Format code (clang-format) - Linux
-clang-format -i src/**/*.cpp src/**/*.h
+# Format code — ALWAYS use the repo script, not a raw clang-format invocation.
+# It picks clang-format-21, refuses older versions, and skips generated files
+# (e.g. lib/EpdFont/builtinFonts/).
+./bin/clang-format-fix        # all tracked files
+./bin/clang-format-fix -g     # only files modified in git status
+# Windows (PowerShell): bin/clang-format-fix.ps1
 ```
+
+**The repo's `.clang-format` requires clang-format 21 or newer** — an older binary reformats the whole tree and the CI format check fails. With `core.hooksPath` set, `.githooks/pre-commit` runs the formatter automatically before each commit.
 
 ### Debugging Crashes
 
@@ -610,6 +659,45 @@ git status --short
 origin      https://github.com/<your-username>/crosspoint-reader.git (fetch/push)
 upstream    https://github.com/crosspoint-reader/crosspoint-reader.git (fetch/push)
 ```
+
+### This Clone: Personal Fork Tracking Upstream
+
+This checkout is a **personal fork** (`origin` → `winst0niuss/crossword`), whose purpose is a Russian-language UI on the owner's own device, while continuously absorbing upstream fixes and features from `crosspoint-reader/crosspoint-reader`. The main branch here is `develop`.
+
+That goal dictates the working rule: **keep the local delta small and rebase-friendly.** Every line changed outside `lib/I18n/translations/russian.yaml` is a line that can conflict on the next sync.
+
+```bash
+# One-time: add the upstream remote (not configured yet in this clone)
+git remote add upstream https://github.com/crosspoint-reader/crosspoint-reader.git
+
+# Each sync
+git fetch upstream
+git rebase upstream/develop        # or: git merge upstream/develop
+git submodule update --init --recursive   # upstream often moves the freeink-sdk pointer
+```
+
+**Rules for changes in this fork**:
+- **Translations are the safe surface.** Editing `russian.yaml` almost never conflicts — YAML values are leaf data. Prefer it to any code change.
+- **Never hardcode Russian text in `.cpp`/`.h`.** Beyond the general `tr()` rule, a hardcoded string is a permanent merge conflict against upstream's version of that line.
+- **Missing keys are not bugs.** `I18n` falls back to English per key, so an incomplete `russian.yaml` builds and runs fine — it just shows English for those strings.
+- If a local behavioural change is genuinely needed, isolate it in its own commit with a `local:` prefix in the subject, so it is easy to spot, re-apply, or drop during a rebase.
+- Upstream contributions are welcome (see [GOVERNANCE.md](../GOVERNANCE.md)) — a completed `russian.yaml` is exactly the kind of change upstream takes, and upstreaming it removes it from the local delta permanently.
+
+### Russian Localization Workflow
+
+Source of truth: [lib/I18n/translations/russian.yaml](../lib/I18n/translations/russian.yaml). `english.yaml` is the reference — it defines the full key set.
+
+```bash
+# Which keys are still untranslated (present in english.yaml, absent from russian.yaml)
+grep -oE '^STR_[A-Z0-9_]+' lib/I18n/translations/english.yaml | sort > /tmp/en.keys
+grep -oE '^STR_[A-Z0-9_]+' lib/I18n/translations/russian.yaml | sort > /tmp/ru.keys
+comm -23 /tmp/en.keys /tmp/ru.keys
+
+# Regenerate the string tables after editing (also runs automatically on `pio run`)
+python scripts/gen_i18n.py lib/I18n/translations lib/I18n/
+```
+
+**Translating for an e-ink UI is length-constrained**, not just semantic: Russian runs ~10-15% longer than English, and menu labels/button captions are laid out against a fixed 800x480 panel. A translation that overflows its widget is a rendering bug. Keep menu items and button labels at or below the English length where possible, and see [docs/translators.md](../docs/translators.md) and [docs/i18n.md](../docs/i18n.md) for conventions.
 
 ### Git Operation Rules
 
@@ -703,11 +791,11 @@ Tested in all 4 orientations with 5MB+ files.
 
 **NEVER manually edit these files** - they are regenerated automatically:
 
-1. **HTML Headers** (generated by `scripts/build_html.py`):
-   - `src/network/html/*.generated.h`
-   - **Source**: HTML templates in `data/html/` directory
-   - **Triggered**: During PlatformIO `pre:` build step
-   - **To modify**: Edit source HTML in `data/html/`, not generated headers
+1. **HTML/JS Headers** (generated by `scripts/build_html.py`):
+   - `src/network/html/*.generated.h` (there is no `data/` directory)
+   - **Source**: the `.html` / `.js` files sitting next to them in `src/network/html/` and `src/network/html/js/`
+   - **Triggered**: During PlatformIO `pre:` build step; the script walks `src/` and minifies each page into a byte array beside its source
+   - **To modify**: Edit the `.html`/`.js` source, never the `.generated.h`
 
 2. **I18n Headers** (generated by `scripts/gen_i18n.py`):
    - `lib/I18n/I18nKeys.h`, `lib/I18n/I18nStrings.h`, `lib/I18n/I18nStrings.cpp`
@@ -794,11 +882,12 @@ build_flags =
 ### Testing Checklist
 
 **AI agent scope** (what you CAN verify):
-1. ✅ **Build**: `pio run -t clean && pio run` (0 errors/warnings)
-2. ✅ **Quality**: `pio check` + `find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i`
-3. ✅ **Format**: Commit messages (`feat:`/`fix:`), no `.gitignore`-excluded files staged (e.g., `*.generated.h`, `.pio/`, `platformio.local.ini`)
-4. ✅ **CI**: Fix GitHub Actions failures before review
-5. ✅ **Code review**: Ensure orientation-aware logic is correct in all 4 modes by inspecting switch/case coverage
+1. ✅ **Build**: `pio run` (0 errors/warnings). Avoid `-t clean` unless necessary — it forces the slow Arduino core rebuild
+2. ✅ **Unit tests**: `pio run -t unit-tests` — mandatory when touching a `lib/` module that has a suite in `test/`
+3. ✅ **Quality**: `pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high` + `./bin/clang-format-fix`
+4. ✅ **Format**: Commit messages (`feat:`/`fix:`), no `.gitignore`-excluded files staged (e.g., `*.generated.h`, `.pio/`, `platformio.local.ini`)
+5. ✅ **CI**: Fix GitHub Actions failures before review
+6. ✅ **Code review**: Ensure orientation-aware logic is correct in all 4 modes by inspecting switch/case coverage
 
 **Human tester scope** (flag these for the user):
 6. 🔲 **Device**: Test on hardware
@@ -812,10 +901,11 @@ build_flags =
 
 | Workflow | File | Purpose |
 |----------|------|---------|
-| Build Check | `.github/workflows/ci.yml` | Verifies code compiles |
-| Format Check | `.github/workflows/pr-formatting-check.yml` | Validates clang-format |
+| CI | `.github/workflows/ci.yml` | Three gated jobs: clang-format-21 check, `pio check` (cppcheck), firmware build + size stats, and the host gtest suites via CMake/CTest |
+| Format Check | `.github/workflows/pr-formatting-check.yml` | Validates clang-format on PRs |
 | Release Build | `.github/workflows/release.yml` | Production releases |
 | RC Build | `.github/workflows/release_candidate.yml` | Release candidates |
+| Font Release | `.github/workflows/release-fonts.yml` | Publishes SD-card font packs (see `docs/sd-card-fonts.md`) |
 
 **Rules**:
 - **Fix CI failures BEFORE** requesting review
@@ -895,19 +985,22 @@ rm -rf /path/to/sd/.crosspoint/epub_<hash>/sections/
 
 **Source**: `lib/Epub/Epub/Section.cpp`, `lib/Epub/Epub/BookMetadataCache.cpp`
 
-**Current Versions** (as of docs/file-formats.md):
-- `book.bin`: **Version 7** (metadata structure)
-- `section.bin`: **Version 25** (layout structure)
+**Current Versions** — read them from the source, they move often:
+- `book.bin`: `BOOK_CACHE_VERSION` in `lib/Epub/Epub/BookMetadataCache.cpp`
+- `section.bin`: `SECTION_FILE_VERSION` in `lib/Epub/Epub/Section.cpp`
 
 **Version Increment Rules**:
 1. **ALWAYS increment version** BEFORE changing binary structure
 2. Version mismatch → Cache auto-invalidated and regenerated
 3. Document format changes in `docs/file-formats.md`
+4. Bump the version even for a **semantically** different but binary-identical layout (past bumps did exactly this, to force a re-layout after a rendering fix)
+
+**Partial-section sentinel**: `Section.cpp` also defines `SECTION_FILE_PARTIAL_VERSION`, derived arithmetically from `SECTION_FILE_VERSION`. It marks a section cache still being built in the background — the sentinel *is* the partial's version byte, so the two **must change in lockstep**. Bumping `SECTION_FILE_VERSION` updates it automatically; never hardcode the partial value.
 
 **Example** (incrementing section format version):
 ```cpp
 // lib/Epub/Epub/Section.cpp
-static constexpr uint8_t SECTION_FILE_VERSION = 26;  // Was 25, now 26
+constexpr uint8_t SECTION_FILE_VERSION = 35;  // was 34
 
 // Add new field to structure
 struct PageLine {
