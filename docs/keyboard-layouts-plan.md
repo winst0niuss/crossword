@@ -104,6 +104,90 @@ layoutId = inputType == InputType::Url ? QwertyEn : layoutForLanguage(...)   // 
 - текстовые поля стартуют с раскладки языка интерфейса
 - `InteractionBuffer<48>` → `<56>`: ЙЦУКЕН регистрирует 48 прямоугольников против 41 у EN. Для казахского пересчитать заново, там ряды шире
 
+
+## Состояние на 2026-08-03 (конец рабочего дня)
+
+Работает целиком, лежит в двух ветках форков. В открытые PR ничего не уходило.
+
+### Ветки
+
+| Репозиторий | Ветка | Коммитов |
+|---|---|---|
+| `winst0niuss/freeink-sdk` (форк `Free-Ink/freeink-sdk`) | `feature/multilingual-layouts` | 5 |
+| `winst0niuss/crosspoint-reader` | `plan/keyboard-layouts` | 8 |
+
+Прошивочная ветка держит указатель submodule на коммит в форке SDK, поэтому у постороннего она не соберётся. Порядок публикации обратный: сначала SDK в upstream, потом прошивка.
+
+**SDK** (`feature/multilingual-layouts`):
+```
+60a657f fix: make shift work on the Latin locale layouts
+f3dcd25 fix: give the Latin layouts a way out of themselves
+7db81a9 docs: correct builtinKeyboardLayout's flag description
+a6278a8 feat: Ukrainian, Belarusian, Kazakh and Hebrew layouts
+0566d12 feat: script switching and a Cyrillic layout
+```
+
+**Прошивка** (`plan/keyboard-layouts`):
+```
+ffd7f249 chore: pick up the SDK shift fix for FR/DE/ES
+123bf884 docs: record why Arabic is deferred
+e1d2c1dc fix: language key names the current layout
+8e391d09 fix: don't persist the default set on a mere visit
+bb02ad0d feat: layout picker screen, four more layouts
+a4fb2a61 feat: user-selectable layout set with a language key
+f41be164 docs: plan for multilingual keyboard layouts
+```
+
+### Что готово
+
+**Девять раскладок.** Латиница: `QwertyEn`, `AzertyFr`, `QwertzDe`, `SpanishEs`. Кириллица: `CyrillicRu`, `CyrillicUk`, `CyrillicBe`, `CyrillicKk`. Плюс `HebrewIl`.
+
+**Клавиша переключения** — новый `KeyKind::Lang` в SDK, id `QWERTY_KEY_LANG = -4` (−3 занят `URL_PANEL_KEY` в прошивке). Метка приходит из приложения через `KeyboardProps::langLabel` и показывает **текущую** раскладку. Флаг `langKey` в `builtinKeyboardLayout` делает клавишу опциональной, чтобы односкриптовые сборки выглядели как раньше.
+
+**Верхний регистр** есть у всех, где он существует. У FR/DE/ES его не было вовсе — клавиша `Shift` рисовалась, но ничего не делала.
+
+**Настройка набора** — `CrossPointSettings::keyboardLayouts`, битовая маска `uint16_t`. Ноль означает «не настроено» и даёт язык интерфейса + English. Экран выбора: Настройки → Система → Раскладки клавиатуры (`KeyboardLayoutsActivity`).
+
+**Логика набора** вынесена в `src/activities/util/KeyboardLayoutSet.{h,cpp}`: дефолт, порядок цикла, коды ISO 639-3, фильтрация битов несуществующих раскладок, `startingLayout()`.
+
+### Ключевые файлы
+
+| Файл | Что в нём |
+|---|---|
+| `freeink-sdk/.../keyboard/key-grid.h` | `KeyKind::Lang` |
+| `freeink-sdk/.../keyboard/keyboard.h` | enum раскладок, `langAction`/`langLabel`, сигнатура `builtinKeyboardLayout` |
+| `freeink-sdk/.../src/FreeInkUI.cpp` | все таблицы клавиш, `builtinKeyboardLayout`, case-flip кириллицы |
+| `src/activities/util/KeyboardLayoutSet.{h,cpp}` | набор, дефолт, цикл, коды |
+| `src/activities/settings/KeyboardLayoutsActivity.{h,cpp}` | экран выбора |
+| `src/activities/util/KeyboardEntryActivity.{h,cpp}` | обработка `QWERTY_KEY_LANG`, `showLangKey`, буфер 56 |
+| `src/CrossPointSettings.{h,cpp}` | `keyboardLayouts` + JSON |
+
+### Найденные и исправленные дефекты
+
+1. **Дубли на клавишах** — явные `alt` у каждой кириллической буквы рисовались подсказкой в углу («йЙ»). Решено расширением case-flip в SDK на кириллицу; явных `alt` осталось два (`е`→`ё`, `Е`→`Ё`).
+2. **Ловушка в FR/DE/ES** — не имели клавиши языка, из них нельзя было выйти.
+3. **`Shift` в FR/DE/ES ничего не делал** — клавиша была, слоя не было.
+4. **Метка показывала следующую раскладку** вместо текущей.
+5. **Открытие экрана настроек фиксировало дефолт** — лишняя запись в SPIFFS и заморозка набора при смене языка интерфейса.
+6. **Пересчёт набора в цикле рендера** — вынесен в `showLangKey`, вычисляется в `onEnter()`.
+7. **Коллизия id** `QWERTY_KEY_LANG` с `URL_PANEL_KEY` (оба были −3).
+
+### Проверки, которые прогонялись
+
+- юнит-тесты проекта: 129/129
+- `pio check` с флагами CI: No defects found
+- изолированные тесты логики набора и case-flip под ASAN/UBSAN
+- скриптовые сверки по таблицам: согласованность `count`, отсутствие дублей id, ёмкость буфера (максимум 48 из 56), наличие клавиши языка во всех раскладках, соответствие верхнего и нижнего слоёв
+
+### С чего продолжить
+
+1. **Сказать Uri-Tauber**, что работа сделана — он писал «I planned to do it myself in the near future». Это первое по срочности: чем дольше молчим, тем выше риск, что он начнёт параллельно.
+2. **Арабский** — нужен эксперимент: проходит ли метка клавиши через шейпер (см. раздел про отложенный арабский выше).
+3. **RTL на иврите** — как ведёт себя поле ввода, курсор, удаление. На железе не проверялось.
+4. **Курсор на кириллице** зависит от PR #2840 (отрисовка режет один байт). Проверять после его мержа либо влив его в ветку локально.
+5. **Дублирование списка раскладок** между enum SDK и `ALL[]` прошивки — рассинхрон будет молчаливым. Лечится sentinel `_COUNT` + `static_assert`, но это правка публичного API SDK.
+6. **Размер флеша** на реальной сборке под ESP32 не мерялся. Оценка по таблицам — около 1.6 КБ на раскладку.
+
 ## Риски
 
 **Арабский отложен (2026-08-03).** При попытке добавить выяснилось, что во встроенных шрифтах SDK **нет базовых арабских букв** (U+0622..U+064A) — есть только `U+0621`, презентационные формы `U+FE80..U+FEFC` и арабские цифры. При этом `arabic.yaml` хранит текст базовыми буквами (`جاري التحميل` — 11 базовых, ноль презентационных), то есть между строкой и экраном работает шейпер.
