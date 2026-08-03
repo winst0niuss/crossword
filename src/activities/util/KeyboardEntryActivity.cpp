@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "KeyboardLayoutSet.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -109,27 +110,16 @@ const fui::KeyboardLayout URL_LAYOUT{URL_ROWS, 5};
 const fui::KeyboardLayout URL_SHIFT_LAYOUT{URL_SHIFT_ROWS, 5};
 const fui::KeyboardLayout URL_SNIPPET_LAYOUT{URL_SNIP_ROWS, 4};
 
-fui::KeyboardLayoutId layoutForLanguage(const Language language) {
-  switch (language) {
-    case Language::FR:
-      return fui::KeyboardLayoutId::AzertyFr;
-    case Language::DE:
-      return fui::KeyboardLayoutId::QwertzDe;
-    case Language::ES:
-      return fui::KeyboardLayoutId::SpanishEs;
-    default:
-      return fui::KeyboardLayoutId::QwertyEn;
-  }
-}
-
 }  // namespace
 
 void KeyboardEntryActivity::onEnter() {
   Activity::onEnter();
   cursorPos = text.length();
-  // URL layers are EN-arranged app tables; everything else follows the UI
-  // language.
-  layoutId = inputType == InputType::Url ? fui::KeyboardLayoutId::QwertyEn : layoutForLanguage(I18N.getLanguage());
+  // URL layers are EN-arranged app tables; everything else opens on the UI
+  // language's layout — unless the user has switched that one off, in which
+  // case honour their choice and open on one they did enable.
+  layoutId = inputType == InputType::Url ? fui::KeyboardLayoutId::QwertyEn
+                                         : keyboard_layouts::startingLayout(I18N.getLanguage());
   shifted = false;
   symbols = false;
   urlPanel = false;
@@ -160,7 +150,10 @@ const fui::KeyboardLayout& KeyboardEntryActivity::currentLayout() const {
     if (urlPanel) return URL_SNIPPET_LAYOUT;
     return shifted ? URL_SHIFT_LAYOUT : URL_LAYOUT;
   }
-  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true);
+  // The language key only earns its slot in the bottom row when there is more
+  // than one layout to reach.
+  const bool langKey = keyboard_layouts::enabledCount() > 1;
+  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true, langKey);
 }
 
 const fui::KeyboardKey* KeyboardEntryActivity::selectedKey() const {
@@ -279,6 +272,16 @@ bool KeyboardEntryActivity::activateValue(const int16_t value, const bool longPr
         symbols = !symbols;
         shifted = false;
       }
+      clampSelection();
+      return true;
+    case fui::QWERTY_KEY_LANG:
+      delPressCount = 0;
+      hintVisible = false;
+      layoutId = keyboard_layouts::next(layoutId);
+      // Shift is per-layer: carrying it across would strand the new layout in
+      // upper case. Row widths differ between scripts (Cyrillic runs 12/11/11
+      // against Latin's 10/9/9), so the selection has to be re-clamped.
+      shifted = false;
       clampSelection();
       return true;
     case URL_PANEL_KEY:
@@ -916,7 +919,7 @@ void KeyboardEntryActivity::render(RenderLock&&) {
   target.setFont(fui::GfxRendererTarget::FONT_BODY, UI_12_FONT_ID);
   const fui::DeviceContext device = target.deviceContext();
   const fui::InputSnapshot noInput{};
-  fui::Frame<48> frame(target, device, noInput, interactions);
+  fui::Frame<56> frame(target, device, noInput, interactions);
 
   fui::KeyboardProps props;
   const fui::KeyboardLayout& layout = currentLayout();
@@ -928,6 +931,10 @@ void KeyboardEntryActivity::render(RenderLock&&) {
   // layer and the URL snippet panel both label it "abc" in the static tables.
   props.modeLabel =
       (symbols || (inputType == InputType::Url && urlPanel)) ? tr(STR_KEY_MODE_ABC) : tr(STR_KEY_MODE_SYMBOLS);
+  // The language key names where it leads, not where it is — with three or more
+  // layouts enabled that is whatever comes next in the cycle. Not run through
+  // tr(): these are language codes, not words to translate.
+  props.langLabel = keyboard_layouts::codeFor(keyboard_layouts::next(layoutId));
   props.inputMask = static_cast<uint16_t>(fui::InputTouch | fui::InputLongPress);
   props.selectedIndex = cursorMode ? -1 : static_cast<int16_t>(selectedLogicalIndex());
   props.labelText.font = fui::GfxRendererTarget::FONT_BODY;
