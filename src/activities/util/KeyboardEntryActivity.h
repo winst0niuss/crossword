@@ -45,6 +45,11 @@ class KeyboardEntryActivity : public Activity {
   // layouts (with the always-visible number row); the URL layers are
   // app-defined tables in the .cpp.
   freeink::ui::KeyboardLayoutId layoutId = freeink::ui::KeyboardLayoutId::QwertyEn;
+  // Whether to draw the language key, resolved once in onEnter(). The enabled
+  // set cannot change while a keyboard is on screen -- editing it needs the
+  // settings screen -- and currentLayout() runs on every loop pass, so there is
+  // no reason to walk the layout table each time.
+  bool showLangKey = false;
   bool shifted = false;
   bool symbols = false;
   bool urlPanel = false;  // URL snippet panel replaces the letter layer

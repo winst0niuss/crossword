@@ -15,12 +15,13 @@ void KeyboardLayoutsActivity::onEnter() {
   // shows as the derived default (UI language + English) rather than as nothing
   // ticked, so the screen reflects what the keyboard actually offers.
   workingMask = keyboard_layouts::enabled();
+  edited = false;
   selectedIndex = 0;
   requestUpdate();
 }
 
 void KeyboardLayoutsActivity::onExit() {
-  if (workingMask != SETTINGS.keyboardLayouts) {
+  if (edited && workingMask != SETTINGS.keyboardLayouts) {
     SETTINGS.keyboardLayouts = workingMask;
     SETTINGS.saveToFile();
   }
@@ -35,6 +36,7 @@ void KeyboardLayoutsActivity::toggleSelected() {
   // with no letters at all.
   if (wasOn && (workingMask & ~b) == 0) return;
   workingMask = static_cast<uint16_t>(wasOn ? (workingMask & ~b) : (workingMask | b));
+  edited = true;
   requestUpdate();
 }
 

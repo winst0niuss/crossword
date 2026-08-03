@@ -120,6 +120,9 @@ void KeyboardEntryActivity::onEnter() {
   // case honour their choice and open on one they did enable.
   layoutId = inputType == InputType::Url ? fui::KeyboardLayoutId::QwertyEn
                                          : keyboard_layouts::startingLayout(I18N.getLanguage());
+  // The key only earns its slot in the bottom row when there is more than one
+  // layout to reach.
+  showLangKey = keyboard_layouts::enabledCount() > 1;
   shifted = false;
   symbols = false;
   urlPanel = false;
@@ -150,10 +153,7 @@ const fui::KeyboardLayout& KeyboardEntryActivity::currentLayout() const {
     if (urlPanel) return URL_SNIPPET_LAYOUT;
     return shifted ? URL_SHIFT_LAYOUT : URL_LAYOUT;
   }
-  // The language key only earns its slot in the bottom row when there is more
-  // than one layout to reach.
-  const bool langKey = keyboard_layouts::enabledCount() > 1;
-  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true, langKey);
+  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true, showLangKey);
 }
 
 const fui::KeyboardKey* KeyboardEntryActivity::selectedKey() const {
@@ -933,8 +933,9 @@ void KeyboardEntryActivity::render(RenderLock&&) {
       (symbols || (inputType == InputType::Url && urlPanel)) ? tr(STR_KEY_MODE_ABC) : tr(STR_KEY_MODE_SYMBOLS);
   // The language key names where it leads, not where it is — with three or more
   // layouts enabled that is whatever comes next in the cycle. Not run through
-  // tr(): these are language codes, not words to translate.
-  props.langLabel = keyboard_layouts::codeFor(keyboard_layouts::next(layoutId));
+  // tr(): these are language codes, not words to translate. Skipped when the key
+  // is not on screen, which also covers the URL and symbol layers.
+  if (showLangKey) props.langLabel = keyboard_layouts::codeFor(keyboard_layouts::next(layoutId));
   props.inputMask = static_cast<uint16_t>(fui::InputTouch | fui::InputLongPress);
   props.selectedIndex = cursorMode ? -1 : static_cast<int16_t>(selectedLogicalIndex());
   props.labelText.font = fui::GfxRendererTarget::FONT_BODY;

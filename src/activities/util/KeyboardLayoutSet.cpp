@@ -75,7 +75,8 @@ freeink::ui::KeyboardLayoutId next(const freeink::ui::KeyboardLayoutId current) 
 
 const char* codeFor(const freeink::ui::KeyboardLayoutId id) {
   const uint8_t i = indexOf(id);
-  return i < COUNT ? ALL[i].code : "EN";
+  // Fallback matches ALL[0], which is English -- ISO 639-3 like the rest.
+  return i < COUNT ? ALL[i].code : "ENG";
 }
 
 }  // namespace keyboard_layouts

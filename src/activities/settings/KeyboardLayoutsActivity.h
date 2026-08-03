@@ -34,5 +34,10 @@ class KeyboardLayoutsActivity final : public Activity {
   // Working copy: the screen edits this and writes it back on exit, so a single
   // settings write covers a whole editing session rather than one per keypress.
   uint16_t workingMask = 0;
+  // Whether the user actually toggled anything. Without this, merely opening the
+  // screen on an unconfigured device would persist the derived default as an
+  // explicit choice -- costing a SPIFFS write for nothing, and freezing the set
+  // so a later UI language change no longer brings its layout along.
+  bool edited = false;
   static constexpr uint8_t totalItems = keyboard_layouts::COUNT;
 };
