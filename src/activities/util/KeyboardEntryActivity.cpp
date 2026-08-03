@@ -931,11 +931,11 @@ void KeyboardEntryActivity::render(RenderLock&&) {
   // layer and the URL snippet panel both label it "abc" in the static tables.
   props.modeLabel =
       (symbols || (inputType == InputType::Url && urlPanel)) ? tr(STR_KEY_MODE_ABC) : tr(STR_KEY_MODE_SYMBOLS);
-  // The language key names where it leads, not where it is — with three or more
-  // layouts enabled that is whatever comes next in the cycle. Not run through
-  // tr(): these are language codes, not words to translate. Skipped when the key
-  // is not on screen, which also covers the URL and symbol layers.
-  if (showLangKey) props.langLabel = keyboard_layouts::codeFor(keyboard_layouts::next(layoutId));
+  // The language key shows the layout in use, the way a phone keyboard's space
+  // bar names the current language — not the one the next press leads to. Not
+  // run through tr(): these are language codes, not words to translate. Skipped
+  // when the key is not on screen, which also covers URL and symbol layers.
+  if (showLangKey) props.langLabel = keyboard_layouts::codeFor(layoutId);
   props.inputMask = static_cast<uint16_t>(fui::InputTouch | fui::InputLongPress);
   props.selectedIndex = cursorMode ? -1 : static_cast<int16_t>(selectedLogicalIndex());
   props.labelText.font = fui::GfxRendererTarget::FONT_BODY;
