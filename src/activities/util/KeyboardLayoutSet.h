@@ -21,16 +21,20 @@ namespace keyboard_layouts {
 // layout needs no new i18n keys.
 struct LayoutInfo {
   freeink::ui::KeyboardLayoutId id;
-  const char* code;  // shown on the language key: "EN", "RU", ...
+  const char* code;  // ISO 639-3, shown on the language key: "ENG", "RUS", ...
   Language language;
 };
 
 inline constexpr LayoutInfo ALL[] = {
-    {freeink::ui::KeyboardLayoutId::QwertyEn, "EN", Language::EN},
-    {freeink::ui::KeyboardLayoutId::AzertyFr, "FR", Language::FR},
-    {freeink::ui::KeyboardLayoutId::QwertzDe, "DE", Language::DE},
-    {freeink::ui::KeyboardLayoutId::SpanishEs, "ES", Language::ES},
-    {freeink::ui::KeyboardLayoutId::CyrillicRu, "RU", Language::RU},
+    {freeink::ui::KeyboardLayoutId::QwertyEn, "ENG", Language::EN},
+    {freeink::ui::KeyboardLayoutId::AzertyFr, "FRA", Language::FR},
+    {freeink::ui::KeyboardLayoutId::QwertzDe, "DEU", Language::DE},
+    {freeink::ui::KeyboardLayoutId::SpanishEs, "SPA", Language::ES},
+    {freeink::ui::KeyboardLayoutId::CyrillicRu, "RUS", Language::RU},
+    {freeink::ui::KeyboardLayoutId::CyrillicUk, "UKR", Language::UK},
+    {freeink::ui::KeyboardLayoutId::CyrillicBe, "BEL", Language::BE},
+    {freeink::ui::KeyboardLayoutId::CyrillicKk, "KAZ", Language::KK},
+    {freeink::ui::KeyboardLayoutId::HebrewIl, "HEB", Language::HE},
 };
 inline constexpr uint8_t COUNT = sizeof(ALL) / sizeof(ALL[0]);
 
