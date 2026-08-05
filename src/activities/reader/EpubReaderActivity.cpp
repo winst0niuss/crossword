@@ -1871,7 +1871,10 @@ void EpubReaderActivity::renderStatusBar() const {
     }
 
   } else if (sb.titleMode == CrossPointSettings::STATUS_BAR_TITLE::CHAPTER_TITLE) {
-    title = tr(STR_UNNAMED);
+    // Sections outside the table of contents -- covers, title pages, colophons --
+    // have no chapter name to show. Leave the slot empty rather than filling it
+    // with a placeholder: "Unnamed" reads as a fault, while blank reads as "this
+    // page has no chapter", which is what it means.
     const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
     if (tocIndex != -1) {
       const auto tocItem = epub->getTocItem(tocIndex);
