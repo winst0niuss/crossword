@@ -1,3 +1,24 @@
+> ## About this fork
+>
+> A personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader). It is rebuilt from upstream `develop` and carries nothing permanent of its own — everything here is either already upstream or waiting in an open pull request.
+>
+> Its purpose is running those pending changes on a real device before they land. When a PR is merged upstream, the next rebuild picks it up from `develop` and it stops being local.
+>
+> **Currently ahead of upstream with:**
+>
+> | Change | Pull request |
+> |---|---|
+> | Multilingual keyboard: nine layouts, a language key, a user-selectable layout set | [#2858](https://github.com/crosspoint-reader/crosspoint-reader/pull/2858) |
+> | Tappable end-of-book menu | [#2860](https://github.com/crosspoint-reader/crosspoint-reader/pull/2860) |
+> | Empty chapter slot instead of an "Unnamed" placeholder | [#2870](https://github.com/crosspoint-reader/crosspoint-reader/pull/2870) |
+> | Buffers sized for UTF-8 rather than ASCII (clock, Wi-Fi count) | [#2850](https://github.com/crosspoint-reader/crosspoint-reader/pull/2850) |
+> | Block cursor no longer splits multi-byte characters | [#2840](https://github.com/crosspoint-reader/crosspoint-reader/pull/2840) |
+> | Russian and Ukrainian translation fixes | [#2851](https://github.com/crosspoint-reader/crosspoint-reader/pull/2851), [#2852](https://github.com/crosspoint-reader/crosspoint-reader/pull/2852) |
+>
+> Already merged upstream and no longer local: keyboard layouts in the SDK ([freeink-sdk#29](https://github.com/Free-Ink/freeink-sdk/pull/29)) and a simulator file-mode fix ([crosspoint-simulator#27](https://github.com/crosspoint-reader/crosspoint-simulator/pull/27)).
+>
+> Builds are unofficial. For a supported release use upstream.
+
 # CrossPoint Reader
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
