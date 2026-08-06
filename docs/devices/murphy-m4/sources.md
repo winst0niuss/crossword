@@ -46,7 +46,10 @@
 | Ресурс | Что там |
 |---|---|
 | <https://github.com/crosspoint-reader/Murphy> | Дампы прошивок и заметки RE по M3/M4. `m3/` — полный дамп 16 МиБ, карта пинов, разметка флеша, LUT-и, план порта. `m4/` — OTA-образ MurphyOS v1.2.16, доказательства родства с CrossPoint, разбор TTF-рендеринга, ассеты веб-UI |
-| <https://github.com/mr-tbot/Crosspoint-Murphy-M3> | Форк с портом на M3 + PDF/MOBI/AZW и аудиоплеером (в апстрим не пойдёт) |
+| <https://github.com/mr-tbot/Crosspoint-Murphy-M3> | Форк с портом на M3 + PDF/MOBI/AZW и аудиоплеером. Внутри — сабмодули на crosspoint, freeink-sdk, community-sdk (ветка `feat-support-for-m3`) и репозиторий Murphy, разбор стоковой прошивки и deep-dive по порту |
+| [`murphy-m3-v1`](https://github.com/mr-tbot/crosspoint-reader/releases/tag/murphy-m3-v1) | **Готовая прошивка CrossPoint для M3** (29.07.2026): `firmware.bin`, `firmware-full-16MB.bin`, `FLASHING.md`, SHA256. Неофициальная, «no wider QA» |
+| [`Murphy_m3_reverse_schematic_PR2.pdf`](https://github.com/mr-tbot/Crosspoint-Murphy-M3/blob/main/docs/hardware/Murphy_m3_reverse_schematic_PR2.pdf) | Схема M3, восстановленная сообществом (~530 КБ). Для M4 аналога нет |
+| <https://www.hgeek.com/> | HamGeek — магазин-перепродавец. В каталоге только M3 3.7" ($69, sold out) и RW01 mini; **4.26" модели нет**. Исходников и схем под именем HamGeek не существует |
 | <https://gitee.com/corogoo/3.7-inch-ink-screen-reader> | OEM-прошивки MoFei/corogoo: `firmware/EPD426-v1` (для 4.26"), `firmware/touch` (для 3.7") |
 | <https://murphy.pandacat.ai/> и `/tools/rollback` | MurphyOS («Murphy Reader»), платная; страница отката на сток |
 | <https://crosspointreader.com/#flash-tools> | Браузерный флешер CrossPoint; используется для восстановления кирпичей Murphy (профиль X4 / X4 Pro + custom bin) |
