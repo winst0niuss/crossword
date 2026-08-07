@@ -157,12 +157,13 @@ l32r a12, "%s panel initialized: logical=%ldx%ld panel=%ldx%ld source=%ld gate=%
 
 ## Воспроизведение
 
-Бинарники в репозиторий не кладутся. Получить заново:
+Разобранные образы лежат рядом — в [firmware/](firmware/), так что скачивать заново не нужно.
+Команды ниже — на случай, если понадобится более свежая версия с сервера:
 
 ```bash
 # 1. образ (сервер может отдать более новую версию — сверяйте sha256 из манифеста)
 curl -s http://murphy.pandacat.ai/ota/latest
-curl -sL http://murphy.pandacat.ai/firmware/panda-ai-os-2.2.7.bin -o panda227.bin
+curl -sL http://murphy.pandacat.ai/firmware/panda-ai-os-2.2.7.bin -o panda227.bin  # уже есть в firmware/
 
 # 2. вырезать сегмент IROM (смещения — из таблицы сегментов выше)
 python3 -c "d=open('panda227.bin','rb').read(); open('irom.bin','wb').write(d[0x240020:0x240020+3539980])"
@@ -180,9 +181,8 @@ python3 tools/findl32r.py                 # точки вызова
 | `panda-ai-os-2.2.7.bin` (6 009 744 Б) | `089b10973938bdf5f05b8910853a851a1cae586ce68516a50bc4c6871e44c458` |
 | `murphy-26-0526-1.2.16.bin` (3 903 024 Б) | `3ee3d0a7207a17d49eb47fa60febff8cf4ac2f47bb52d74a1beceb40b8b124ea` |
 
-Второй лежит в репозитории `crosspoint-reader/Murphy` (`m4/`), первый раздаётся только с
-сервера pandacat по HTTP — если он обновится, старую версию взять будет негде, поэтому
-локальную копию стоит сохранить вне скретчпада.
+Оба сохранены в [firmware/](firmware/) вместе с заводскими OEM-образами: сервер pandacat
+раздаёт только текущую версию по HTTP, и при обновлении старая пропадает безвозвратно.
 
 ## Что это значит для порта
 
