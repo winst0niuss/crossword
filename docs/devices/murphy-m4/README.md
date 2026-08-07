@@ -441,6 +441,7 @@ small-panel UI scaling, and native MOBI / PDF / audio** (OPEN, `mr-tbot`, 30.07.
 ## 5. Что делать, когда устройство приедет
 
 > Разбор прошивки с извлечёнными пинами — в [firmware-analysis.md](firmware-analysis.md).
+> Устройство простыми словами, что готово и что писать — в [anatomy.md](anatomy.md).
 > Развёрнутый план с матрицей гипотез, профилями-кандидатами и деревом экспериментов —
 > в [porting-plan.md](porting-plan.md). Ниже — короткий чек-лист.
 
