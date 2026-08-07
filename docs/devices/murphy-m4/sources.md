@@ -56,6 +56,26 @@
 | <https://xteink.lakafior.com/> | Конвертер `.ttf`/`.otf` в формат шрифтов старых стоковых прошивок |
 | <https://youtu.be/_DDLVtqr49I> | Видео: CrossPoint, запущенный на Murphy M3 |
 
+## Проверки, давшие отрицательный результат
+
+Зафиксировано, чтобы не искать это заново:
+
+- **Исходников MurphyOS / Panda AI OS нет.** Среди форков `crosspoint-reader` нет ни одного от
+  pandacat; поиск репозиториев по GitHub («murphy reader firmware», «pandacat») и Gitee — пусто;
+  у corogoo на gitee только собранные `.bin` и zip со шрифтовым инструментом.
+- **Публичного форка с поддержкой M4 нет.** Поиск по коду GitHub: `MurphyM4`, `murphy_m4`,
+  `env:murphy_m4` — ноль; `Uc8253Murphy` находится только как M3-драйвер (SDK и его вендорные
+  копии). Среди 39 форков `freeink-sdk` и веток `community-sdk`/`Murphy` профильная ветка одна —
+  `feat-support-for-m3`.
+- **Под именем «HamGeek M4» ничего не существует.** В каталоге `hgeek.com` только M3 3.7"
+  ($69, sold out) и RW01 mini; 4.26" модели нет. GitHub/Gitee по «hamgeek» дают лишь
+  `crosspoint-reader/Murphy` и форк `mr-tbot`.
+- **Модель устройства внутри образов MurphyOS не закодирована** (ни в 1.2.16, ни в 2.2.7):
+  нет ни `M3`/`M4`, ни `E426`/`E037`, ни строк с разрешением. OTA-манифест отдаёт
+  `board: "mofei"` без разделения.
+- **Reddit недоступен из окружения агента** — 403 для `WebFetch`, `curl`, `old.reddit.com`,
+  `api.reddit.com` и readability-прокси.
+
 ## Как это читалось
 
 Reddit блокирует прямые запросы из окружения агента (403 для `WebFetch`, `curl`,
