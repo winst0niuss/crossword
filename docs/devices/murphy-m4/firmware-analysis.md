@@ -137,6 +137,53 @@ l32r a12, "%s panel initialized: logical=%ldx%ld panel=%ldx%ld source=%ld gate=%
 | Батарея | ADC GPIO9 | **GPIO9** |
 | SD | 4-битный SDMMC | **4-битный SDMMC, 20 МГц** |
 
+## Опорные адреса (чтобы не искать заново)
+
+Функция логирования — **`0x4208a488`** (вызывается через `call8`, сигнатура
+`(level, tag, format, ...)`, уровень `1` во всех разобранных местах).
+
+| Что | Строка (vaddr) | Литерал | PC вызова `l32r` |
+|---|---|---|---|
+| `EPD bus up:` | `0x3c37d488` | `0x420028c4` | `0x42027f79` |
+| `%s panel initialized:` | `0x3c37ca34` | `0x420027d0` | `0x42026a2a` |
+| `%s touch init SDA=` | `0x3c37d81c` | `0x42002974` | `0x42028b65` |
+| `SD bus pins CLK=` | `0x3c37deb0` | `0x42002aac` | `0x4202a051` |
+| `battery ADC ready gpio=` | `0x3c37dcc4` | `0x420029fc` | `0x420299a7` |
+| `FT6336U ready at` | `0x3c37da60` | `0x42002998` | `0x42028f1d` |
+
+Теги логов: `EPDBUS` `0x3c37d2bc`, `INPUT` `0x3c37d590`, `STORAGE` `0x3c37de4c`,
+`POWER` `0x3c37dbe0`, `DISPLAY` `0x3c37c860`. Имя платформы `mofei` — `0x3c3780d0`.
+Строка порядка развёртки `logical-portrait-to-panel-landscape` — `0x3c37cad0`.
+
+## Воспроизведение
+
+Бинарники в репозиторий не кладутся. Получить заново:
+
+```bash
+# 1. образ (сервер может отдать более новую версию — сверяйте sha256 из манифеста)
+curl -s http://murphy.pandacat.ai/ota/latest
+curl -sL http://murphy.pandacat.ai/firmware/panda-ai-os-2.2.7.bin -o panda227.bin
+
+# 2. вырезать сегмент IROM (смещения — из таблицы сегментов выше)
+python3 -c "d=open('panda227.bin','rb').read(); open('irom.bin','wb').write(d[0x240020:0x240020+3539980])"
+
+# 3. дальше — скриптами из tools/
+python3 tools/espimg.py panda227.bin      # сегменты, строки, литералы
+python3 tools/findl32r.py                 # точки вызова
+./tools/ctx.sh 0x42027f79 96 24           # дизассемблер вокруг адреса
+```
+
+Контрольные суммы разобранных образов:
+
+| Файл | SHA-256 |
+|---|---|
+| `panda-ai-os-2.2.7.bin` (6 009 744 Б) | `089b10973938bdf5f05b8910853a851a1cae586ce68516a50bc4c6871e44c458` |
+| `murphy-26-0526-1.2.16.bin` (3 903 024 Б) | `3ee3d0a7207a17d49eb47fa60febff8cf4ac2f47bb52d74a1beceb40b8b124ea` |
+
+Второй лежит в репозитории `crosspoint-reader/Murphy` (`m4/`), первый раздаётся только с
+сервера pandacat по HTTP — если он обновится, старую версию взять будет негде, поэтому
+локальную копию стоит сохранить вне скретчпада.
+
 ## Что это значит для порта
 
 - **Карта пинов M4 получена до приезда устройства.** Board-профиль можно писать уже сейчас.
