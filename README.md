@@ -1,3 +1,21 @@
+> ## About this fork
+>
+> A personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader). It is rebuilt from upstream `develop` and carries nothing permanent of its own — everything here is either already upstream or waiting in an open pull request.
+>
+> Its purpose is running those pending changes on a real device before they land. When a PR reaches `develop`, the next rebuild picks it up and it stops being local.
+>
+> **Currently ahead of upstream with:**
+>
+> | Change | Pull request |
+> |---|---|
+> | Multilingual keyboard: nine layouts, a language key, a user-selectable layout set | [#2858](https://github.com/crosspoint-reader/crosspoint-reader/pull/2858) |
+> | Empty chapter slot instead of an "Unnamed" placeholder | [#2870](https://github.com/crosspoint-reader/crosspoint-reader/pull/2870) |
+> | Block cursor no longer splits multi-byte characters | [#3094](https://github.com/crosspoint-reader/crosspoint-reader/pull/3094) |
+> | Text-field line wrapping no longer splits multi-byte characters | [#3095](https://github.com/crosspoint-reader/crosspoint-reader/pull/3095) |
+> | Upstream's whole `chore/update-translations` queue, which is not in `develop` yet — includes the 15 Russian strings that fell back to English ([#3091](https://github.com/crosspoint-reader/crosspoint-reader/pull/3091)) and the Russian wording and widget-fit pass ([#3092](https://github.com/crosspoint-reader/crosspoint-reader/pull/3092)) | merged as a branch |
+>
+> Builds are unofficial. For a supported release use upstream.
+
 # CrossPoint Reader
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
