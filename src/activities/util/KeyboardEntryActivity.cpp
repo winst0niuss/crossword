@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "KeyboardLayoutSet.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -109,27 +110,17 @@ const fui::KeyboardLayout URL_LAYOUT{URL_ROWS, 5};
 const fui::KeyboardLayout URL_SHIFT_LAYOUT{URL_SHIFT_ROWS, 5};
 const fui::KeyboardLayout URL_SNIPPET_LAYOUT{URL_SNIP_ROWS, 4};
 
-fui::KeyboardLayoutId layoutForLanguage(const Language language) {
-  switch (language) {
-    case Language::FR:
-      return fui::KeyboardLayoutId::AzertyFr;
-    case Language::DE:
-      return fui::KeyboardLayoutId::QwertzDe;
-    case Language::ES:
-      return fui::KeyboardLayoutId::SpanishEs;
-    default:
-      return fui::KeyboardLayoutId::QwertyEn;
-  }
-}
-
 }  // namespace
 
 void KeyboardEntryActivity::onEnter() {
   Activity::onEnter();
   cursorPos = text.length();
-  // URL layers are EN-arranged app tables; everything else follows the UI
-  // language.
-  layoutId = inputType == InputType::Url ? fui::KeyboardLayoutId::QwertyEn : layoutForLanguage(I18N.getLanguage());
+  // URL layers are EN-arranged app tables; everything else opens on the UI
+  // language's layout, or on an enabled one if the user switched that off.
+  layoutId = inputType == InputType::Url ? fui::KeyboardLayoutId::QwertyEn
+                                         : keyboard_layouts::startingLayout(I18N.getLanguage());
+  // The key only earns its slot in the bottom row with somewhere to go.
+  showLangKey = keyboard_layouts::enabledCount() > 1;
   shifted = false;
   symbols = false;
   urlPanel = false;
@@ -160,7 +151,7 @@ const fui::KeyboardLayout& KeyboardEntryActivity::currentLayout() const {
     if (urlPanel) return URL_SNIPPET_LAYOUT;
     return shifted ? URL_SHIFT_LAYOUT : URL_LAYOUT;
   }
-  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true);
+  return fui::builtinKeyboardLayout(layoutId, shifted, false, /*numberRow=*/true, showLangKey);
 }
 
 const fui::KeyboardKey* KeyboardEntryActivity::selectedKey() const {
@@ -281,6 +272,21 @@ bool KeyboardEntryActivity::activateValue(const int16_t value, const bool longPr
       }
       clampSelection();
       return true;
+    case fui::QWERTY_KEY_LANG: {
+      delPressCount = 0;
+      hintVisible = false;
+      const fui::KeyboardLayoutId nextId = keyboard_layouts::next(layoutId);
+      // The non-Latin tables draw the key even with one layout enabled; a
+      // full-screen e-ink repaint for an unchanged keyboard costs a second.
+      if (nextId == layoutId) return false;
+      layoutId = nextId;
+      // Shift is per-layer: carrying it across would strand the new layout in
+      // upper case. Row widths differ between scripts (Cyrillic runs 12/11/11
+      // against Latin's 10/9/9), so the selection has to be re-clamped.
+      shifted = false;
+      clampSelection();
+      return true;
+    }
     case URL_PANEL_KEY:
       delPressCount = 0;
       hintVisible = false;
@@ -920,7 +926,7 @@ void KeyboardEntryActivity::render(RenderLock&&) {
   target.setFont(fui::GfxRendererTarget::FONT_BODY, UI_12_FONT_ID);
   const fui::DeviceContext device = target.deviceContext();
   const fui::InputSnapshot noInput{};
-  fui::Frame<48> frame(target, device, noInput, interactions);
+  fui::Frame<56> frame(target, device, noInput, interactions);
 
   fui::KeyboardProps props;
   const fui::KeyboardLayout& layout = currentLayout();
@@ -932,6 +938,11 @@ void KeyboardEntryActivity::render(RenderLock&&) {
   // layer and the URL snippet panel both label it "abc" in the static tables.
   props.modeLabel =
       (symbols || (inputType == InputType::Url && urlPanel)) ? tr(STR_KEY_MODE_ABC) : tr(STR_KEY_MODE_SYMBOLS);
+  // Names the layout in use, the way a phone's space bar does — not the one the
+  // next press leads to. No tr(): these are language codes, not words. Set even
+  // when showLangKey is false, since the non-Latin tables carry the key anyway
+  // and label it "EN" until this overrides them.
+  props.langLabel = keyboard_layouts::codeFor(layoutId);
   props.inputMask = static_cast<uint16_t>(fui::InputTouch | fui::InputLongPress);
   props.selectedIndex = cursorMode ? -1 : static_cast<int16_t>(selectedLogicalIndex());
   props.labelText.font = fui::GfxRendererTarget::FONT_BODY;
