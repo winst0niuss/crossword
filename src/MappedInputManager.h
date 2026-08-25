@@ -51,6 +51,11 @@ class MappedInputManager {
   bool hasTouch() const;
   bool wasScreenTapped(int& x, int& y) const;
   bool wasScreenTouchDown(int& x, int& y) const;
+  // Raw contact-begin edge at the landing point. wasScreenTouchDown is the
+  // press-feedback signal instead: it waits out TOUCH_DOWN_SELECT_DELAY_MS so
+  // a quick tap never flashes a highlight, and drops out once the finger
+  // leaves the tap slop — both of which a drag trips before it starts.
+  bool wasScreenContactBegan(int& x, int& y) const;
   // One-shot long-press from the SDK touch classifier, fired WHILE the finger
   // is still down (stationary contact held past the SDK threshold). Consuming
   // it suppresses the remainder of the contact — its continued hold and its

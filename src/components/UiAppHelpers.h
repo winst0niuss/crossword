@@ -184,6 +184,13 @@ inline freeink::ui::InputSnapshot touchSnapshotFrom(const MappedInputManager& ma
     snap.touchX = static_cast<int16_t>(tx);
     snap.touchY = static_cast<int16_t>(ty);
   }
+  // Separate from touchPressed below: routing binds sliders on this edge, so
+  // a drag that starts moving at once still grabs the handle it landed on.
+  if (mappedInput.wasScreenContactBegan(tx, ty)) {
+    snap.touchDown = true;
+    snap.touchDownX = static_cast<int16_t>(tx);
+    snap.touchDownY = static_cast<int16_t>(ty);
+  }
   if (mappedInput.wasScreenTouchDown(tx, ty)) {
     snap.touchPressed = true;
     snap.touchX = static_cast<int16_t>(tx);
