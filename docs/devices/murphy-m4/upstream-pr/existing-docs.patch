@@ -1,0 +1,144 @@
+From 7a7a42c2df9f84bf216e005e7939aebac639b616 Mon Sep 17 00:00:00 2001
+From: winst0niuss <chumachenko.vadym@gmail.com>
+Date: Sat, 29 Aug 2026 23:01:38 +0400
+Subject: [PATCH] docs: analyse Panda AI OS, the current self-describing
+ factory firmware
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The factory line has moved past murphy-26-0526-1.2.16.bin. The current OTA
+release is Panda AI OS, and unlike 1.2.16 it logs its entire hardware
+configuration at boot through printf-style format strings that survive in the
+binary — the M4 pin map can be read off the serial console on a stock device.
+
+Disassembling those call sites gives an independent binary confirmation of every
+GPIO this repository established by probing: display 3/4/5/6/7/8, touch
+13/12/44/45 at 0x2E with an active-LOW power rail, SD 16/15/17/18/11/14 with
+gpio_set_level(10, 0), battery ADC on 9, frontlight cool 47 / warm 48, and a
+480x800 logical framebuffer transposed onto an 800x480 panel. The SSD1677
+booster payload and gate count are present here too.
+
+Two facts the probes did not cover: a card-detect input on GPIO21 that the port
+does not use, and the rates the factory firmware actually runs (SD bus 20 MHz
+against the port's 400 kHz; frontlight PWM 5 kHz against 25 kHz). Environment
+sensor probing for AHT30 / AHT20 at 0x38 / SHT40 at 0x44-0x45 is also recorded,
+untested on hardware.
+
+Both panda-ai-os 2.2.7 and 2.3.5 were analysed and agree on every constant;
+2.3.5 is archived here because the vendor manifest only ever names the newest
+build and publishes no index of older ones.
+
+Adds two tools: find_string_refs.py locates the call sites that reference a
+given string (string to literal to l32r, found arithmetically because a linear
+Xtensa pass loses sync), and xtensa_ctx.sh disassembles around such a PC using
+the objdump PlatformIO already installs — the existing esp32s3_xtensa_disasm.py
+needs a capstone build with the Xtensa backend, which released capstone 5.x
+does not have.
+---
+ m4/README.md            |  3 +++
+ m4/findings/README.md   |  1 +
+ m4/findings/hardware.md | 35 ++++++++++++++++++++++++++++++++---
+ 3 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/m4/README.md b/m4/README.md
+index a6065b7..5ec0ece 100644
+--- a/m4/README.md
++++ b/m4/README.md
+@@ -28,6 +28,7 @@ sleep/wake, and dual-channel frontlight.
+ 
+ - [Build, install, and restore](findings/crosspoint_port.md)
+ - [Hardware reference](findings/hardware.md)
++- [Panda AI OS: the self-describing factory firmware](findings/panda_ai_os.md)
+ - [Touch-controller findings and safety boundary](findings/touch.md)
+ - [Frontlight controls](findings/frontlight.md)
+ - [USB and flash access](findings/flash_access.md)
+@@ -52,6 +53,8 @@ testing. The complete factory flash backup remains the recovery source of truth.
+ - `probes/` contains hardware-discovery sketches. Build output is intentionally ignored.
+ - `binwalk_extracted/` contains selected assets extracted from the publicly distributed
+   MurphyOS OTA application image.
++- `panda-ai-os-2.3.5.bin` is the publicly distributed current factory OTA image, archived
++  because the vendor manifest only ever names the newest build.
+ 
+ Personal flash dumps, extracted private partitions, serial logs, Ghidra project
+ databases, and local tool environments are intentionally excluded from version control.
+diff --git a/m4/findings/README.md b/m4/findings/README.md
+index 2705c9d..7bfb54a 100644
+--- a/m4/findings/README.md
++++ b/m4/findings/README.md
+@@ -6,6 +6,7 @@ Reviewed documentation for the Murphy M4 CrossPoint port.
+ |---|---|
+ | [crosspoint_port.md](crosspoint_port.md) | Reproducible build, application-only install, validation, and restoration |
+ | [hardware.md](hardware.md) | Confirmed hardware and GPIO reference |
++| [panda_ai_os.md](panda_ai_os.md) | Current factory firmware: its self-describing boot log, and the pin map read out of it |
+ | [touch.md](touch.md) | Working touch protocol, initialization, orientation, and safety boundary |
+ | [frontlight.md](frontlight.md) | Frontlight hardware and user controls added by the port |
+ | [flash_access.md](flash_access.md) | Download-mode, backup, and recovery procedures |
+diff --git a/m4/findings/hardware.md b/m4/findings/hardware.md
+index 3f9f0d4..0faa972 100644
+--- a/m4/findings/hardware.md
++++ b/m4/findings/hardware.md
+@@ -115,9 +115,16 @@ Mofei FT6336U config failed on SDA=%d SCL=%d addr=0x%02X
+ | D2 pin | GPIO11 | CONFIRMED |
+ | D3 pin | GPIO14 | CONFIRMED |
+ | Power enable | GPIO10 | CONFIRMED (active LOW) |
++| Card detect | GPIO21 (input, pull-up) | CONFIRMED (factory binary; unused by the port) |
+ | Card capacity (test card) | 29.8 GB | CONFIRMED (mounted) |
+ | Working frequency | 400 kHz (4-bit) | CONFIRMED |
+ 
++The current Panda AI OS factory firmware configures the same bus at **20 MHz**
++and reads a card-detect input on GPIO21 that the CrossPoint port does not use.
++Its boot log also prints all six interface pins and the `gpio_set_level(10, 0)`
++power-gate call verbatim, independently confirming the probe results above —
++see [panda_ai_os.md](panda_ai_os.md).
++
+ Binary evidence from `murphy-26-0526-1.2.16.bin` that pointed at this:
+ ```
+ Mofei SD_MMC (4-bit) setPins failed
+@@ -235,6 +242,16 @@ Audio hardware has not been confirmed and remains out of scope for the initial p
+ 
+ ---
+ 
++## Environment Sensors
++
++Not probed on hardware. The factory firmware carries driver paths for three
++temperature/humidity parts and takes whichever answers on the I2C bus: `AHT30`,
++`AHT20` (probed at `0x38`, the address the M3's AHT30 uses) and `SHT40` (probed
++at `0x44` / `0x45`). Which part an M4 actually carries is not decidable from the
++binary. Details in [panda_ai_os.md](panda_ai_os.md).
++
++---
++
+ ## WiFi / Bluetooth
+ 
+ Built into the ESP32-S3. The factory firmware uses WiFi for OTA updates
+@@ -245,11 +262,23 @@ own network features (OPDS, Calibre sync, etc.).
+ 
+ ## OTA Update Mechanism
+ 
+-The factory firmware fetches updates from `http://murphy.pandacat.ai/ota/latest`.
+-The endpoint returns a JSON manifest:
++The factory firmware fetches updates from `https://murphy.pandacat.ai/ota/latest`.
++The endpoint returns a JSON manifest carrying the whole install recipe:
+ ```json
+-{ "firmware_url": "...", "firmware_size": ... }
++{ "version": "2.3.5",
++  "firmware_url": "https://murphy.pandacat.ai/firmware/panda-ai-os-2.3.5.bin",
++  "firmware_size": 4319904, "app_offset": 131072,
++  "product": "murphy-os", "board": "mofei",
++  "sha256": "d049bfc8e5d44c8f0be6c8f69855a9b36954e3df053ffecaa5b86dfe449dfebd" }
+ ```
+ The device then downloads the binary and writes it to the `app1` OTA slot.
+ This mechanism can be intercepted by running a fake OTA server on a local
+ network — useful as an alternative to USB flashing.
++
++`board` is `"mofei"` with no model discriminator, and the response does not vary
++with query parameters — one endpoint serves the whole product line. Superseded
++builds stay reachable at their original `/firmware/panda-ai-os-<version>.bin`
++URL, but no index of them is published. The current line is **Panda AI OS**, not
++the `murphy-26-0526-1.2.16.bin` "Murphy Reader" image analysed elsewhere here;
++it logs its complete hardware configuration at boot, which is analysed in
++[panda_ai_os.md](panda_ai_os.md).
+-- 
+2.50.1 (Apple Git-155)
+

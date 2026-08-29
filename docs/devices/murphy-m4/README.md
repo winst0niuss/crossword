@@ -444,6 +444,9 @@ small-panel UI scaling, and native MOBI / PDF / audio** (OPEN, `mr-tbot`, 30.07.
 > Устройство простыми словами, что готово и что писать — в [anatomy.md](anatomy.md).
 > Развёрнутый план с матрицей гипотез, профилями-кандидатами и деревом экспериментов —
 > в [porting-plan.md](porting-plan.md). Ниже — короткий чек-лист.
+>
+> Что из наших находок готово к отправке в `crosspoint-reader/Murphy` — в
+> [upstream-pr/](upstream-pr/README.md).
 
 Порядок важен: снимать дамп **до** любой перепрошивки.
 

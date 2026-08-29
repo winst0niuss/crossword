@@ -1,0 +1,31 @@
+docs: analyse Panda AI OS, the current self-describing factory firmware
+
+The factory line has moved past murphy-26-0526-1.2.16.bin. The current OTA
+release is Panda AI OS, and unlike 1.2.16 it logs its entire hardware
+configuration at boot through printf-style format strings that survive in the
+binary — the M4 pin map can be read off the serial console on a stock device.
+
+Disassembling those call sites gives an independent binary confirmation of every
+GPIO this repository established by probing: display 3/4/5/6/7/8, touch
+13/12/44/45 at 0x2E with an active-LOW power rail, SD 16/15/17/18/11/14 with
+gpio_set_level(10, 0), battery ADC on 9, frontlight cool 47 / warm 48, and a
+480x800 logical framebuffer transposed onto an 800x480 panel. The SSD1677
+booster payload and gate count are present here too.
+
+Two facts the probes did not cover: a card-detect input on GPIO21 that the port
+does not use, and the rates the factory firmware actually runs (SD bus 20 MHz
+against the port's 400 kHz; frontlight PWM 5 kHz against 25 kHz). Environment
+sensor probing for AHT30 / AHT20 at 0x38 / SHT40 at 0x44-0x45 is also recorded,
+untested on hardware.
+
+Both panda-ai-os 2.2.7 and 2.3.5 were analysed and agree on every constant;
+2.3.5 is archived here because the vendor manifest only ever names the newest
+build and publishes no index of older ones.
+
+Adds two tools: find_string_refs.py locates the call sites that reference a
+given string (string to literal to l32r, found arithmetically because a linear
+Xtensa pass loses sync), and xtensa_ctx.sh disassembles around such a PC using
+the objdump PlatformIO already installs — the existing esp32s3_xtensa_disasm.py
+needs a capstone build with the Xtensa backend, which released capstone 5.x
+does not have.
+

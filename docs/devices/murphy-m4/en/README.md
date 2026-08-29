@@ -383,6 +383,9 @@ For the port none of this matters: the pins and waveforms come out of the binary
 > The device in plain words, what is ready and what has to be written, is in [anatomy.md](anatomy.md).
 > The full plan with the hypothesis matrix, candidate profiles and the experiment tree is in
 > [porting-plan.md](porting-plan.md). What follows is the short checklist.
+>
+> The subset of our findings prepared for `crosspoint-reader/Murphy` is in
+> [upstream-pr/](../upstream-pr/README.md).
 
 The order matters: take the dump **before** any reflashing.
 
