@@ -1,3 +1,19 @@
+> ## About this fork
+>
+> A personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader). It is rebuilt from upstream `develop` and carries nothing permanent of its own — everything here is either already upstream or waiting in an open pull request.
+>
+> Its purpose is running those pending changes on a real device before they land. When a PR reaches `develop`, the next rebuild picks it up and it stops being local.
+>
+> **Currently ahead of upstream with:**
+>
+> | Change | Pull request |
+> |---|---|
+> | Empty chapter slot instead of an "Unnamed" placeholder | [#2870](https://github.com/crosspoint-reader/crosspoint-reader/pull/2870) |
+> | Slider handle follows the touch instead of sticking at the ends of its travel | [#3211](https://github.com/crosspoint-reader/crosspoint-reader/pull/3211) |
+> | Pending localization fixes from upstream `chore/update-translations`, merged whole | [pt-BR #3394](https://github.com/crosspoint-reader/crosspoint-reader/pull/3394), [es #3408](https://github.com/crosspoint-reader/crosspoint-reader/pull/3408), [font manifest #3447](https://github.com/crosspoint-reader/crosspoint-reader/pull/3447), [es/ca/cav library UI #3540](https://github.com/crosspoint-reader/crosspoint-reader/pull/3540), [ru library UI #3542](https://github.com/crosspoint-reader/crosspoint-reader/pull/3542), [es/ca/cav UI controls #3627](https://github.com/crosspoint-reader/crosspoint-reader/pull/3627), [fr #3639](https://github.com/crosspoint-reader/crosspoint-reader/pull/3639), [es/ca/cav spacing #3660](https://github.com/crosspoint-reader/crosspoint-reader/pull/3660), [es/ca/cav library hold #3661](https://github.com/crosspoint-reader/crosspoint-reader/pull/3661), [es/ca/cav touch #3681](https://github.com/crosspoint-reader/crosspoint-reader/pull/3681), plus direct Hebrew commits |
+>
+> Builds are unofficial. For a supported release use upstream.
+
 # CrossPoint Reader
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
